@@ -33,7 +33,7 @@ NAME=nfdhcpd
 DESC="NFQUEUE-based DHCP/RA server" 
 LOGDIR=/var/log/nfdhcpd
 
-PIDFILE=/var/run/$NAME.pid
+PIDFILE=/var/run/$NAME/$NAME.pid
 
 test -x $DAEMON || exit 0
 
@@ -69,9 +69,9 @@ fi
 # Use this if you want the user to explicitly set 'RUN' in
 # /etc/default/
 if [ "x$RUN" != "xyes" ] ; then
-    log_failure_msg "$NAME disabled, please adjust the configuration to your needs "
-    log_failure_msg "and then set RUN to 'yes' in /etc/default/$NAME to enable it."
-    exit 1
+  log_failure_msg "$NAME disabled, please adjust the configuration to your needs "
+  log_failure_msg "and then set RUN to 'yes' in /etc/default/$NAME to enable it."
+  exit 1
 fi
 
 # Check that the user exists (if we set a user)
@@ -79,71 +79,76 @@ fi
 set -e
 
 running_pid() {
-# Check if a given process pid's cmdline matches a given name
-    pid=$1
-    name=$2
-    [ -z "$pid" ] && return 1
-    [ ! -d /proc/$pid ] &&  return 1
-    cmd=`cat /proc/$pid/cmdline | tr "\000" "\n"|head -n 1 |cut -d : -f 1`
-    # Is this the expected server
-    [ "$cmd" != "$name" ] &&  return 1
-    return 0
+  # Check if a given process pid's cmdline matches a given name
+  pid=$1
+  name=$2
+  [ -z "$pid" ] && return 1
+  [ ! -d /proc/$pid ] &&  return 1
+  cmd=`cat /proc/$pid/cmdline | tr "\000" "\n"|head -n 1 |cut -d : -f 1`
+  # Is this the expected server
+  [ "$cmd" != "$name" ] &&  return 1
+  return 0
 }
 
 running() {
-# Check if the process is running looking at /proc
-# (works for all users)
-
-    # No pidfile, probably no daemon present
-    [ ! -f "$PIDFILE" ] && return 1
-    pid=`cat $PIDFILE`
-    running_pid $pid python || return 1
-    return 0
+  # Check if the process is running looking at /proc
+  # (works for all users)
+  # No pidfile, probably no daemon present
+  [ ! -f "$PIDFILE" ] && return 1
+  pid=`cat $PIDFILE`
+  running_pid $pid python || return 1
+  return 0
 }
 
 start_server() {
-	# /var/run may be volatile, so we need to ensure that
-	# /var/run/$NAME exists here as well as in postinst
-	if [ ! -d /var/run/$NAME ]; then
-	   mkdir /var/run/$NAME || return 1
-	   chown nobody:nogroup /var/run/$NAME || return 1
-	fi
+  # /var/run may be volatile, so we need to ensure that
+  # /var/run/$NAME exists here as well as in postinst
+  if [ ! -d /var/run/$NAME ]; then
+     mkdir /var/run/$NAME || return 1
+     chown nobody:nogroup /var/run/$NAME || return 1
+  fi
+  iptables -t mangle -A PREROUTING --proto udp --dport 67 -j NFQUEUE --queue-num 42 
+  ip6tables -t mangle -A PREROUTING --proto icmpv6 --icmpv6-type router-solicitation -j NFQUEUE --queue-num 43
+  ip6tables -t mangle -A PREROUTING --proto icmpv6 --icmpv6-type neighbour-solicitation -j NFQUEUE --queue-num 44
 	start_daemon -p $PIDFILE $DAEMON $DAEMON_OPTS
 	errcode=$?
 	return $errcode
 }
 
 stop_server() {
-	killproc -p $PIDFILE $DAEMON
-	rrcode=$?
-	return $errcode
+  iptables -t mangle -D PREROUTING --proto udp --dport 67 -j NFQUEUE --queue-num 42
+  ip6tables -t mangle -D PREROUTING --proto icmpv6 --icmpv6-type router-solicitation -j NFQUEUE --queue-num 43
+  ip6tables -t mangle -D PREROUTING --proto icmpv6 --icmpv6-type neighbour-solicitation -j NFQUEUE --queue-num 44
+  killproc -p $PIDFILE $DAEMON
+  errcode=$?
+  return $errcode
 }
 
 reload_server() {
-    [ ! -f "$PIDFILE" ] && return 1
-    pid=pidofproc $PIDFILE # This is the daemon's pid
-    # Send a SIGHUP
-    kill -1 $pid
-    return $?
+  [ ! -f "$PIDFILE" ] && return 1
+  pid=pidofproc $PIDFILE # This is the daemon's pid
+  # Send a SIGHUP
+  kill -1 $pid
+  return $?
 }
 
 force_stop() {
 # Force the process to die killing it manually
-	[ ! -e "$PIDFILE" ] && return
-	if running ; then
-		kill -15 $pid
-	# Is it really dead?
-		sleep "$DIETIME"s
-		if running ; then
-			kill -9 $pid
-			sleep "$DIETIME"s
-			if running ; then
-				echo "Cannot kill $NAME (pid=$pid)!"
-				exit 1
-			fi
-		fi
-	fi
-	rm -f $PIDFILE
+  [ ! -e "$PIDFILE" ] && return
+  if running ; then
+    kill -15 $pid
+    # Is it really dead?
+    sleep "$DIETIME"s
+    if running ; then
+      kill -9 $pid
+      sleep "$DIETIME"s
+      if running ; then
+        echo "Cannot kill $NAME (pid=$pid)!"
+        exit 1
+      fi
+    fi
+  fi
+  rm -f $PIDFILE
 }
 
 
@@ -177,7 +182,7 @@ case "$1" in
         log_daemon_msg "Stopping $DESC" "$NAME"
         if running ; then
             # Only stop the server if we see it running
-			errcode=0
+			      errcode=0
             stop_server || errcode=$?
             log_end_msg $errcode
         else
@@ -193,14 +198,14 @@ case "$1" in
         if running; then
             # If it's still running try to kill it more forcefully
             log_daemon_msg "Stopping (force) $DESC" "$NAME"
-			errcode=0
+			      errcode=0
             force_stop || errcode=$?
             log_end_msg $errcode
         fi
 	;;
   restart|force-reload)
         log_daemon_msg "Restarting $DESC" "$NAME"
-		errcode=0
+    		errcode=0
         stop_server || errcode=$?
         # Wait some sensible amount, some server need this
         [ -n "$DIETIME" ] && sleep $DIETIME
