@@ -1,7 +1,7 @@
 Source: nfdhcpd
 Section: net
 Priority: extra
-Maintainer: Apollon Oikonomopoulos <apollon@noc.grnet.gr>
+Maintainer: Dimitris Aragiorgis <dimara@grnet.gr>
 Build-Depends: debhelper (>= 7)
 Standards-Version: 3.9.1
 
