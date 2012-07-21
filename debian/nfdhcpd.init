@@ -107,18 +107,12 @@ start_server() {
      mkdir /var/run/$NAME || return 1
      chown nobody:nogroup /var/run/$NAME || return 1
   fi
-  iptables -t mangle -A PREROUTING --proto udp --dport 67 -j NFQUEUE --queue-num 42 
-  ip6tables -t mangle -A PREROUTING --proto icmpv6 --icmpv6-type router-solicitation -j NFQUEUE --queue-num 43
-  ip6tables -t mangle -A PREROUTING --proto icmpv6 --icmpv6-type neighbour-solicitation -j NFQUEUE --queue-num 44
 	start_daemon -p $PIDFILE $DAEMON $DAEMON_OPTS
 	errcode=$?
 	return $errcode
 }
 
 stop_server() {
-  iptables -t mangle -D PREROUTING --proto udp --dport 67 -j NFQUEUE --queue-num 42
-  ip6tables -t mangle -D PREROUTING --proto icmpv6 --icmpv6-type router-solicitation -j NFQUEUE --queue-num 43
-  ip6tables -t mangle -D PREROUTING --proto icmpv6 --icmpv6-type neighbour-solicitation -j NFQUEUE --queue-num 44
   killproc -p $PIDFILE $DAEMON
   errcode=$?
   return $errcode
