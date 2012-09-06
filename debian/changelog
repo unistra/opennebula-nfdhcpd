@@ -1,4 +1,4 @@
-nfdhcpd (0.10.0-1) unstable; urgency=low
+nfdhcpd (0.11.0-1) stable; urgency=low
 
   * Refactor nfdhcpd to support extended binding files and bridged clients
 
