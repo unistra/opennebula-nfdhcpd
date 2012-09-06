@@ -113,7 +113,7 @@ start_server() {
 }
 
 stop_server() {
-  killproc -p $PIDFILE $DAEMON
+  start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
   errcode=$?
   return $errcode
 }
