@@ -1,3 +1,9 @@
+nfdhcpd (0.11.2-1) stable; urgency=low
+
+  * Fix two critical bugs (blocking send/capng_update()) and add logging
+
+ -- Dimitris Aragiorgis <dimara@grnet.gr>  Tue, 03 Jul 2012 16:41:23 +0300
+
 nfdhcpd (0.11.0-1) stable; urgency=low
 
   * Refactor nfdhcpd to support extended binding files and bridged clients
