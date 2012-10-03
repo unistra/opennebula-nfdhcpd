@@ -1,3 +1,4 @@
-nfdhcpd usr/sbin
+nfdhcpd usr/sbin/
 nfdhcpd.ferm etc/ferm/
-nfdhcpd.conf etc/nfdhcpd
+nfdhcpd.conf etc/nfdhcpd/
+nfdhcpd.logrotate etc/logrotate.d/
