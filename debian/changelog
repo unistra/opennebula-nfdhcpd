@@ -1,3 +1,9 @@
+nfdhcpd (0.11.6-1~wheezy) wheezy; urgency=low
+
+  * New upstream version
+
+ -- Christos Stavrakakis <cstavr@grnet.gr>  Fri, 30 Aug 2013 17:30:48 +0300
+
 nfdhcpd (0.11.5-2) squeeze; urgency=low
 
   * Fix two critical bugs (blocking send/capng_update()) and add logging
@@ -63,3 +69,4 @@ nfdhcpd (0.1) unstable; urgency=low
   * Initial Release.
 
  -- Apollon Oikonomopoulos <apollon@noc.grnet.gr>  Mon, 15 Nov 2010 12:42:53 +0200
+
