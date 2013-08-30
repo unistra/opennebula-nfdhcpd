@@ -1,3 +1,9 @@
+nfdhcpd (0.11.6-1~squeeze) squeeze; urgency=low
+
+  * New upstream version
+
+ -- Christos Stavrakakis <cstavr@grnet.gr>  Fri, 30 Aug 2013 17:40:01 +0300
+
 nfdhcpd (0.11.5-2) squeeze; urgency=low
 
   * Fix two critical bugs (blocking send/capng_update()) and add logging
