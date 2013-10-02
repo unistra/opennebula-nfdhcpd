@@ -569,11 +569,19 @@ class VMNetProxy(object):  # pylint: disable=R0902
             logging.debug("Client on %s disappeared!!!", tap)
 
 
-    def dhcp_response(self, dummy, payload):  # pylint: disable=W0613,R0914
+    def dhcp_response(self, arg1, arg2=None):  # pylint: disable=W0613,R0914
         """ Generate a reply to bnetfilter-queue-deva BOOTP/DHCP request
 
         """
         logging.info(" * Processing pending DHCP request")
+        # Workaround for supporting both squeezy's nfqueue-bindings-python
+        # and wheezy's python-nfqueue because for some reason the function's
+        # signature has changed and has broken compatibility
+        # See bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718894
+        if arg2:
+            payload = arg2
+        else:
+            payload = arg1
         # Decode the response - NFQUEUE relays IP packets
         pkt = IP(payload.get_data())
         #logging.debug(pkt.show())
@@ -690,11 +698,19 @@ class VMNetProxy(object):  # pylint: disable=R0902
             logging.warn(" - Unkown error during DHCP response on %s (%s): %s",
                          binding.tap, binding.hostname, str(e))
 
-    def rs_response(self, dummy, payload):  # pylint: disable=W0613
+    def rs_response(self, arg1, arg2=None):  # pylint: disable=W0613
         """ Generate a reply to a BOOTP/DHCP request
 
         """
         logging.info(" * Processing pending RS request")
+        # Workaround for supporting both squeezy's nfqueue-bindings-python
+        # and wheezy's python-nfqueue because for some reason the function's
+        # signature has changed and has broken compatibility
+        # See bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718894
+        if arg2:
+            payload = arg2
+        else:
+            payload = arg1
         pkt = IPv6(payload.get_data())
         #logging.debug(pkt.show())
         try:
@@ -755,12 +771,20 @@ class VMNetProxy(object):  # pylint: disable=R0902
             logging.warn(" - Unkown error during RA on %s (%s): %s",
                          binding.tap, binding.hostname, str(e))
 
-    def ns_response(self, dummy, payload):  # pylint: disable=W0613
+    def ns_response(self, arg1, arg2=None):  # pylint: disable=W0613
         """ Generate a reply to an ICMPv6 neighbor solicitation
 
         """
 
         logging.info(" * Processing pending NS request")
+        # Workaround for supporting both squeezy's nfqueue-bindings-python
+        # and wheezy's python-nfqueue because for some reason the function's
+        # signature has changed and has broken compatibility
+        # See bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718894
+        if arg2:
+            payload = arg2
+        else:
+            payload = arg1
 
         ns = IPv6(payload.get_data())
         #logging.debug(ns.show())
