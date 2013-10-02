@@ -1,3 +1,10 @@
+nfdhcpd (0.11.7-1~wheezy) wheezy; urgency=low
+
+  * New upstream version
+  * Changed nfqueue-bindings-python dependency to python-nfqueue
+
+ -- Dimitris Aragiorgis <dimara@grnet.gr>  Wed, 02 Oct 2013 18:13:32 +0300
+
 nfdhcpd (0.11.6-1~wheezy) wheezy; urgency=low
 
   * New upstream version
@@ -69,4 +76,5 @@ nfdhcpd (0.1) unstable; urgency=low
   * Initial Release.
 
  -- Apollon Oikonomopoulos <apollon@noc.grnet.gr>  Mon, 15 Nov 2010 12:42:53 +0200
+
 
