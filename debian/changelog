@@ -1,3 +1,9 @@
+nfdhcpd (0.12.2-1~wheezy) wheezy; urgency=low
+
+  * Some fixes related to DHCPv6
+
+ -- Dimitris Aragiorgis <dimara@grnet.gr>  Tue, 18 Feb 2014 15:19:05 +0200
+
 nfdhcpd (0.12.1-1~wheezy) wheezy; urgency=low
 
   * Provide DNS Search List in DHCH6_Reply
@@ -94,6 +100,7 @@ nfdhcpd (0.1) unstable; urgency=low
   * Initial Release.
 
  -- Apollon Oikonomopoulos <apollon@noc.grnet.gr>  Mon, 15 Nov 2010 12:42:53 +0200
+
 
 
 
