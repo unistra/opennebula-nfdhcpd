@@ -1,3 +1,9 @@
+nfdhcpd (0.12.3-1~wheezy) wheezy; urgency=low
+
+  * Some changes in logging format
+
+ -- Dimitris Aragiorgis <dimara@grnet.gr>  Wed, 19 Feb 2014 20:17:29 +0200
+
 nfdhcpd (0.12.2-1~wheezy) wheezy; urgency=low
 
   * Some fixes related to DHCPv6
@@ -100,6 +106,7 @@ nfdhcpd (0.1) unstable; urgency=low
   * Initial Release.
 
  -- Apollon Oikonomopoulos <apollon@noc.grnet.gr>  Mon, 15 Nov 2010 12:42:53 +0200
+
 
 
 
