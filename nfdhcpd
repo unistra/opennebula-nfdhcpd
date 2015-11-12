@@ -2,7 +2,7 @@
 #
 
 # nfdcpd: A promiscuous, NFQUEUE-based DHCP server for virtual machine hosting
-# Copyright (c) 2010 GRNET SA
+# Copyright (c) 2010, 2011, 2012, 2013, 2014 GRNET SA
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -88,6 +88,7 @@ server_ip = ip_addr()
 dhcp_queue = integer(min=0, max=65535)
 nameservers = ip_addr_list(family=4)
 domain = string(default=None)
+domain_search = string_list(default=None)
 
 [ipv6]
 enable_ipv6 = boolean(default=True)
@@ -158,6 +159,7 @@ def parse_binding_file(path):
 
     tap = os.path.basename(path)
     indev = None
+    mtu = None
     mac = None
     ip = None
     hostname = None
@@ -166,6 +168,10 @@ def parse_binding_file(path):
     subnet6 = None
     gateway6 = None
     eui64 = None
+    nameservers = None
+    nameservers6 = None
+    domain = None
+    domain_search = None
 
     def get_value(line):
         v = line.strip().split('=')[1]
@@ -174,7 +180,9 @@ def parse_binding_file(path):
         return v
 
     for line in iffile:
-        if line.startswith("IP="):
+        if line.startswith("MTU="):
+            mtu = get_value(line)
+        elif line.startswith("IP="):
             ip = get_value(line)
         elif line.startswith("MAC="):
             mac = get_value(line)
@@ -192,11 +200,21 @@ def parse_binding_file(path):
             gateway6 = get_value(line)
         elif line.startswith("EUI64="):
             eui64 = get_value(line)
+        elif line.startswith("DOMAIN="):
+            domain = get_value(line)
+        elif line.startswith("DOMAIN_SEARCH="):
+            domain_search = [d.strip() for d in line.split("=")[1].split(",")]
+        elif line.startswith("NAMESERVERS="):
+            nameservers += [ns.strip() for ns in line.split("=")[1].split(",")]
+        elif line.startswith("NAMESERVERS6="):
+            nameservers6 += [ns.strip() for ns in line.split("=")[1].split(",")]
 
     try:
-        return Client(tap=tap, mac=mac, ip=ip, hostname=hostname,
+        return Client(tap=tap, mtu=mtu, mac=mac, ip=ip, hostname=hostname,
                       indev=indev, subnet=subnet, gateway=gateway,
-                      subnet6=subnet6, gateway6=gateway6, eui64=eui64 )
+                      subnet6=subnet6, gateway6=gateway6, eui64=eui64,
+                      nameservers=nameservers, nameservers6=nameservers6,
+                      domain=domain, domain_search=domain_search )
     except ValueError:
         logging.warning(" - Cannot add client for host %s and IP %s on tap %s",
                         hostname, ip, tap)
@@ -226,10 +244,13 @@ class ClientFileHandler(pyinotify.ProcessEvent):
 
 
 class Client(object):
-    def __init__(self, tap=None, indev=None,
+    def __init__(self, tap=None, mtu=None, indev=None,
                  mac=None, ip=None, hostname=None,
-                 subnet=None, gateway=None,
-                 subnet6=None, gateway6=None, eui64=None):
+                 subnet=None, gateway=None, domain=None,
+                 domain_search=None, subnet6=None, 
+                 gateway6=None, eui64=None, nameservers=None, 
+                 nameservers6=None ):
+        self.mtu = mtu
         self.mac = mac
         self.ip = ip
         self.hostname = hostname
@@ -242,10 +263,14 @@ class Client(object):
         self.gateway6 = gateway6
         self.net6 = Subnet(net=subnet6, gw=gateway6, dev=tap)
         self.eui64 = eui64
+        self.domain = domain
+        self.domain_search = domain_search
+        self.nameservers = nameservers
+        self.nameservers6 = nameservers6
         self.open_socket()
 
     def is_valid(self):
-        return self.mac is not None and self.hostname is not None
+        return self.mac is not None
 
 
     def open_socket(self):
@@ -290,6 +315,8 @@ class Client(object):
             ret += ", eui64 %s" % self.eui64
         return ret
 
+def format_domain_search(domain):
+    return ''.join([chr(len(part)) + part for part in domain.split('.')]) + '\0'
 
 class Subnet(object):
     def __init__(self, net=None, gw=None, dev=None):
@@ -366,7 +393,7 @@ class VMNetProxy(object):  # pylint: disable=R0902
                  rs_queue_num=None, ns_queue_num=None, dhcpv6_queue_num=None,
                  dhcp_lease_lifetime=DEFAULT_LEASE_LIFETIME,
                  dhcp_lease_renewal=DEFAULT_LEASE_RENEWAL,
-                 dhcp_domain=None,
+                 dhcp_domain=None, dhcp_domain_search=None,
                  dhcp_server_ip=DHCP_DUMMY_SERVER_IP, dhcp_nameservers=None,
                  ra_period=DEFAULT_RA_PERIOD, ipv6_nameservers=None,
                  dhcpv6_domains=None):
@@ -380,12 +407,19 @@ class VMNetProxy(object):  # pylint: disable=R0902
         self.lease_lifetime = dhcp_lease_lifetime
         self.lease_renewal = dhcp_lease_renewal
         self.dhcp_domain = dhcp_domain
+        self.dhcp_domain_search = dhcp_domain_search
         self.dhcp_server_ip = dhcp_server_ip
         self.ra_period = ra_period
+
         if dhcp_nameservers is None:
             self.dhcp_nameserver = []
         else:
             self.dhcp_nameservers = dhcp_nameservers
+
+        if dhcp_domain_search is None:
+            self.dhcp_domain_search = []
+        else:
+            self.dhcp_domain_search = dhcp_domain_search
 
         if ipv6_nameservers is None:
             self.ipv6_nameservers = []
@@ -648,10 +682,9 @@ class VMNetProxy(object):  # pylint: disable=R0902
         logging.info(" - DHCP: %s from %s",
                      DHCP_TYPES.get(req_type, "UNKNOWN"), binding)
 
-        if self.dhcp_domain:
-            domainname = self.dhcp_domain
-        else:
-            domainname = binding.hostname.split('.', 1)[-1]
+        domainname = binding.domain or self.dhcp_domain
+        nameservers = binding.nameservers or self.dhcp_nameservers
+        domain_search = binding.domain_search or self.dhcp_domain_search
 
         if req_type == DHCPREQUEST and requested_addr != binding.ip:
             resp_type = DHCPNAK
@@ -662,24 +695,32 @@ class VMNetProxy(object):  # pylint: disable=R0902
             resp_type = DHCP_REQRESP[req_type]
             resp.yiaddr = binding.ip
             dhcp_options += [
-                 ("hostname", binding.hostname),
-                 ("domain", domainname),
                  ("broadcast_address", str(subnet.broadcast)),
                  ("subnet_mask", str(subnet.netmask)),
                  ("renewal_time", self.lease_renewal),
                  ("lease_time", self.lease_lifetime),
             ]
+            if binding.hostname:
+                dhcp_options += [("hostname", binding.hostname)]
+            if domainname:
+                dhcp_options += [("domain", domainname)]
             if subnet.gw:
                 dhcp_options += [("router", subnet.gw)]
-            dhcp_options += [("name_server", x) for x in self.dhcp_nameservers]
+            if binding.mtu:
+                dhcp_options += [("interface_mtu", binding.mtu)]
+            dhcp_options += [("name_server", x) for x in nameservers]
+            dhcp_options += [("domain_search", format_domain_search(x))
+                             for x in domain_search]
 
         elif req_type == DHCPINFORM:
             resp_type = DHCP_REQRESP[req_type]
-            dhcp_options += [
-                 ("hostname", binding.hostname),
-                 ("domain", domainname),
-            ]
-            dhcp_options += [("name_server", x) for x in self.dhcp_nameservers]
+            if binding.hostname:
+                dhcp_options += [("hostname", binding.hostname)]
+            if domainname:
+                dhcp_options += [("domain", domainname)]
+            dhcp_options += [("name_server", x) for x in nameservers]
+            dhcp_options += [("domain_search", format_domain_search(x))
+                             for x in domain_search]
 
         elif req_type == DHCPRELEASE:
             # Log and ignore
@@ -1130,7 +1171,11 @@ if __name__ == "__main__":
 
     if opts.daemonize:
         logfile = os.path.join(config["general"]["logdir"], LOG_FILENAME)
-        handler = logging.handlers.WatchedFileHandler(logfile)
+        try:
+            handler = logging.handlers.WatchedFileHandler(logfile)
+        except IOError:
+            sys.stderr.write(" - Failed to open logging directory, exiting.\n")
+            sys.exit(1)
     else:
         handler = logging.StreamHandler()
 
@@ -1178,6 +1223,7 @@ if __name__ == "__main__":
             "dhcp_server_ip": config["dhcp"]["server_ip"],
             "dhcp_nameservers": config["dhcp"]["nameservers"],
             "dhcp_domain": config["dhcp"]["domain"],
+            "dhcp_domain_search": config["dhcp"]["domain_search"],
         })
 
     if config["ipv6"].as_bool("enable_ipv6"):
