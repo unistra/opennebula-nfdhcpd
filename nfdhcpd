@@ -51,11 +51,10 @@ from scapy.layers.inet import IP, UDP
 from scapy.layers.dhcp import BOOTP, DHCP
 
 DEFAULT_CONFIG = "/etc/nfdhcpd/nfdhcpd.conf"
-DEFAULT_PATH = "/var/run/ganeti-dhcpd"
 DEFAULT_USER = "nobody"
 DEFAULT_LEASE_LIFETIME = 604800 # 1 week
 DEFAULT_LEASE_RENEWAL = 600  # 10 min
-DHCP_DUMMY_SERVER_IP = "1.2.3.4"
+DHCP_DUMMY_SERVER_IP = "169.254.255.254"
 
 LOG_FILENAME = "nfdhcpd.log"
 
@@ -133,13 +132,14 @@ def parse_binding_file(path):
 
     """
     logging.info("Parsing binding file %s", path)
+    
     try:
         iffile = open(path, 'r')
     except EnvironmentError, e:
         logging.warn(" - Unable to open binding file %s: %s", path, str(e))
         return None
 
-    tap = os.path.basename(path)
+    filename = os.path.basename(path)
     indev = None
     mtu = None
     mac = None
@@ -147,9 +147,9 @@ def parse_binding_file(path):
     hostname = None
     subnet = None
     gateway = None
-    nameservers = None
+    nameservers = []
     domain = None
-    domain_search = None
+    domain_search = []
 
     def get_value(line):
         v = line.strip().split('=')[1]
@@ -178,15 +178,24 @@ def parse_binding_file(path):
             domain_search = [d.strip() for d in line.split("=")[1].split(",")]
         elif line.startswith("NAMESERVERS="):
             nameservers += [ns.strip() for ns in line.split("=")[1].split(",")]
+        else:
+            logging.warn("Unknown line in binding file %s: %s", path, line)
 
     try:
-        return Client(tap=tap, mtu=mtu, mac=mac, ip=ip, hostname=hostname,
-                      indev=indev, subnet=subnet, gateway=gateway,
-                      nameservers=nameservers, domain=domain, 
+        return Client(filename=filename, 
+                      mtu=mtu, 
+                      mac=mac, 
+                      ip=ip, 
+                      hostname=hostname, 
+                      indev=indev, 
+                      subnet=subnet, 
+                      gateway=gateway,
+                      nameservers=nameservers, 
+                      domain=domain, 
                       domain_search=domain_search )
     except ValueError:
-        logging.warning(" - Cannot add client for host %s and IP %s on tap %s",
-                        hostname, ip, tap)
+        logging.warning(" - Cannot add client for host %s and IP %s on interface %s",
+                        hostname, ip, indev)
         return None
 
 
@@ -201,7 +210,7 @@ class ClientFileHandler(pyinotify.ProcessEvent):
         Currently this removes an interface from the watch list
 
         """
-        self.server.remove_tap(event.name)
+        self.server.remove_interface_binding(event.name)
 
     def process_IN_CLOSE_WRITE(self, event):  # pylint: disable=C0103
         """ Add file handler
@@ -209,39 +218,48 @@ class ClientFileHandler(pyinotify.ProcessEvent):
         Currently this adds an interface to the watch list
 
         """
-        self.server.add_tap(os.path.join(event.path, event.name))
+        self.server.add_interface_binding(os.path.join(event.path, event.name))
 
 
 class Client(object):
-    def __init__(self, tap=None, mtu=None, indev=None,
-                 mac=None, ip=None, hostname=None,
-                 subnet=None, gateway=None, domain=None,
-                 domain_search=None, nameservers=None ):
+    def __init__(self, 
+                 filename=None, 
+                 mtu=None, 
+                 indev=None,
+                 mac=None, 
+                 ip=None, 
+                 hostname=None,
+                 subnet=None, 
+                 gateway=None, 
+                 domain=None,
+                 domain_search=None, 
+                 nameservers=None ):
+        self.filename = filename
         self.mtu = mtu
         self.mac = mac
         self.ip = ip
         self.hostname = hostname
         self.indev = indev
-        self.tap = tap
         self.subnet = subnet
         self.gateway = gateway
-        self.net = Subnet(net=subnet, gw=gateway, dev=tap)
+        self.net = Subnet(net=subnet, gw=gateway, dev=indev)
         self.domain = domain
         self.domain_search = domain_search
         self.nameservers = nameservers
         self.open_socket()
 
     def is_valid(self):
-        return self.mac is not None
+        # XXX
+        return self.indev is not None and self.mac is not None
 
 
     def open_socket(self):
 
-        logging.info(" - Opening L2 socket and binding to %s", self.tap)
+        logging.info(" - Opening L2 socket and binding to %s", self.indev)
         try:
             s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ETH_P_ALL)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 0)
-            s.bind((self.tap, ETH_P_ALL))
+            s.bind((self.indev, ETH_P_ALL)) #XXX self.indev should never be None 
             self.socket = s
         except socket.error, e:
             logging.warning(" - Cannot open socket %s", e)
@@ -263,17 +281,14 @@ class Client(object):
             raise e
 
         ldata = len(data)
-        logging.debug(" - Sent %d bytes on %s", count, self.tap)
+        logging.debug(" - Sent %d bytes on %s", count, self.indev)
         if count != ldata:
             logging.warn(" - Truncated msg: %d/%d bytes sent",
                          count, ldata)
 
     def __repr__(self):
-        ret =  "hostname %s, tap %s, mac %s" % \
-               (self.hostname, self.tap, self.mac)
-        if self.ip:
-            ret += ", ip %s" % self.ip
-        return ret
+        return "hostname %s, interface %s, mac %s, ip %s" % \
+               (self.hostname, self.indev, self.mac, self.ip)
 
 def format_domain_search(domain):
     return ''.join([chr(len(part)) + part for part in domain.split('.')]) + '\0'
@@ -320,18 +335,22 @@ class Subnet(object):
         return self.net.prefixlen()
 
 
-class VMNetProxy(object):  # pylint: disable=R0902
-    def __init__(self, data_path, dhcp_queue_num=None,  # pylint: disable=R0913
+class VMNetProxy(object):
+    def __init__(self, 
+                 data_path, 
+                 dhcp_queue_num=None,
                  dhcp_lease_lifetime=DEFAULT_LEASE_LIFETIME,
                  dhcp_lease_renewal=DEFAULT_LEASE_RENEWAL,
-                 dhcp_domain=None, dhcp_domain_search=None,
-                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP, dhcp_nameservers=None):
-
+                 dhcp_domain=None, 
+                 dhcp_domain_search=None,
+                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP, 
+                 dhcp_nameservers=None):
         try:
             getattr(nfqueue.payload, 'get_physindev')
             self.mac_indexed_clients = False
         except AttributeError:
             self.mac_indexed_clients = True
+
         self.data_path = data_path
         self.lease_lifetime = dhcp_lease_lifetime
         self.lease_renewal = dhcp_lease_renewal
@@ -350,8 +369,6 @@ class VMNetProxy(object):  # pylint: disable=R0902
             self.dhcp_domain_search = dhcp_domain_search
 
         self.clients = {}
-        #self.subnets = {}
-        #self.ifaces = {}
         self.nfq = {}
 
         # Inotify setup
@@ -412,11 +429,11 @@ class VMNetProxy(object):  # pylint: disable=R0902
         self.clients.clear()
 
         for path in glob.glob(os.path.join(self.data_path, "*")):
-            self.add_tap(path)
+            self.add_interface_binding(path)
 
         self.print_clients()
 
-    def get_ifindex(self, iface):
+    def get_iface_ifindex(self, iface):
         """ Get the interface index from sysfs
 
         """
@@ -432,8 +449,7 @@ class VMNetProxy(object):  # pylint: disable=R0902
             f = open(path, 'r')
         except EnvironmentError:
             logging.debug(" - %s is probably down, removing", iface)
-            self.remove_tap(iface)
-
+            self.remove_interface_binding(iface)
             return ifindex
 
         try:
@@ -446,7 +462,7 @@ class VMNetProxy(object):  # pylint: disable=R0902
         except EnvironmentError, e:
             logging.warn(" - Error reading %s's ifindex from sysfs: %s",
                          iface, str(e))
-            self.remove_tap(iface)
+            self.remove_interface_binding(iface)
         finally:
             f.close()
 
@@ -457,42 +473,46 @@ class VMNetProxy(object):  # pylint: disable=R0902
 
         """
         logging.debug(" - Getting mac for iface %s", iface)
+
         path = os.path.abspath(os.path.join(SYSFS_NET, iface, "address"))
         if not path.startswith(SYSFS_NET):
             return None
 
         addr = None
+
         try:
             f = open(path, 'r')
         except EnvironmentError:
             logging.debug(" - %s is probably down, removing", iface)
-            self.remove_tap(iface)
+            self.remove_interface_binding(iface)
             return addr
 
         try:
             addr = f.readline().strip()
         except EnvironmentError, e:
-            logging.warn(" - Failed to read hw address for %s from sysfs: %s",
+            logging.warn(" - Error reading %s's hw address from sysfs: %s",
                          iface, str(e))
         finally:
             f.close()
 
         return addr
 
-    def add_tap(self, path):
+    def add_interface_binding(self, path):
         """ Add an interface to monitor
 
         """
-        tap = os.path.basename(path)
+        filename = os.path.basename(path)
 
-        logging.info("Updating configuration for %s", tap)
+        logging.info("Updating configuration for %s", filename)
+
         b = parse_binding_file(path)
         if b is None:
             return
-        ifindex = self.get_ifindex(b.tap)
+
+        ifindex = self.get_iface_ifindex(b.indev)
 
         if ifindex is None:
-            logging.warn(" - Stale configuration for %s found", tap)
+            logging.warn(" - Stale configuration for %s found", filename)
         else:
             if b.is_valid():
                 if self.mac_indexed_clients:
@@ -503,18 +523,18 @@ class VMNetProxy(object):  # pylint: disable=R0902
                     k = ifindex
                 logging.info(" - Added client %s. %s", k, b)
 
-    def remove_tap(self, tap):
+    def remove_interface_binding(self, iface):
         """ Cleanup clients on a removed interface
 
         """
         try:
             for k, cl in self.clients.items():
-                if cl.tap == tap:
+                if cl.indev == iface:
                     cl.socket.close()
                     del self.clients[k]
                     logging.info("Removed client %s. %s", k, cl)
         except:
-            logging.debug("Client on %s disappeared!!!", tap)
+            logging.debug("Client on %s disappeared!!!", iface)
 
 
     def dhcp_response(self, arg1, arg2=None):  # pylint: disable=W0613,R0914
@@ -704,11 +724,11 @@ class VMNetProxy(object):  # pylint: disable=R0902
                                      fd, str(e))
 
     def print_clients(self):
-        logging.info("%10s   %20s %20s %10s %20s %40s",
-                     'Key', 'Client', 'MAC', 'TAP', 'IP')
+        logging.info("%10s %20s %20s %10s %15s",
+                     'Key', 'Client', 'MAC', 'INDEV', 'IP')
         for k, cl in self.clients.items():
-            logging.info("%10s | %20s %20s %10s %20s",
-                         k, cl.hostname, cl.mac, cl.tap, cl.ip)
+            logging.info("%10s %20s %20s %10s %15s",
+                         k, cl.hostname, cl.mac, cl.indev, cl.ip)
 
 
 
