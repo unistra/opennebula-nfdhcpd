@@ -42,28 +42,19 @@ from lockfile import LockTimeout
 import IPy
 import socket
 import select
-from socket import AF_INET, AF_INET6
+from socket import AF_INET
 
 from scapy.data import ETH_P_ALL
 from scapy.packet import BasePacket
 from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, UDP
-from scapy.layers.inet6 import IPv6, ICMPv6ND_RA, ICMPv6ND_NA, \
-                               ICMPv6NDOptDstLLAddr, \
-                               ICMPv6NDOptPrefixInfo, \
-                               ICMPv6NDOptRDNSS
 from scapy.layers.dhcp import BOOTP, DHCP
-from scapy.layers.dhcp6 import DHCP6_Reply, DHCP6OptDNSServers, \
-                               DHCP6OptServerId, DHCP6OptClientId, \
-                               DUID_LLT, DHCP6_InfoRequest, DHCP6OptDNSDomains
-
 
 DEFAULT_CONFIG = "/etc/nfdhcpd/nfdhcpd.conf"
 DEFAULT_PATH = "/var/run/ganeti-dhcpd"
 DEFAULT_USER = "nobody"
 DEFAULT_LEASE_LIFETIME = 604800 # 1 week
 DEFAULT_LEASE_RENEWAL = 600  # 10 min
-DEFAULT_RA_PERIOD = 300 # seconds
 DHCP_DUMMY_SERVER_IP = "1.2.3.4"
 
 LOG_FILENAME = "nfdhcpd.log"
@@ -89,15 +80,6 @@ dhcp_queue = integer(min=0, max=65535)
 nameservers = ip_addr_list(family=4)
 domain = string(default=None)
 domain_search = string_list(default=None)
-
-[ipv6]
-enable_ipv6 = boolean(default=True)
-ra_period = integer(min=1, max=4294967295)
-rs_queue = integer(min=0, max=65535)
-ns_queue = integer(min=0, max=65535)
-dhcp_queue = integer(min=0, max=65535)
-nameservers = ip_addr_list(family=6)
-domains = force_list(default=None)
 """
 
 
@@ -165,11 +147,7 @@ def parse_binding_file(path):
     hostname = None
     subnet = None
     gateway = None
-    subnet6 = None
-    gateway6 = None
-    eui64 = None
     nameservers = None
-    nameservers6 = None
     domain = None
     domain_search = None
 
@@ -194,27 +172,18 @@ def parse_binding_file(path):
             subnet = get_value(line)
         elif line.startswith("GATEWAY="):
             gateway = get_value(line)
-        elif line.startswith("SUBNET6="):
-            subnet6 = get_value(line)
-        elif line.startswith("GATEWAY6="):
-            gateway6 = get_value(line)
-        elif line.startswith("EUI64="):
-            eui64 = get_value(line)
         elif line.startswith("DOMAIN="):
             domain = get_value(line)
         elif line.startswith("DOMAIN_SEARCH="):
             domain_search = [d.strip() for d in line.split("=")[1].split(",")]
         elif line.startswith("NAMESERVERS="):
             nameservers += [ns.strip() for ns in line.split("=")[1].split(",")]
-        elif line.startswith("NAMESERVERS6="):
-            nameservers6 += [ns.strip() for ns in line.split("=")[1].split(",")]
 
     try:
         return Client(tap=tap, mtu=mtu, mac=mac, ip=ip, hostname=hostname,
                       indev=indev, subnet=subnet, gateway=gateway,
-                      subnet6=subnet6, gateway6=gateway6, eui64=eui64,
-                      nameservers=nameservers, nameservers6=nameservers6,
-                      domain=domain, domain_search=domain_search )
+                      nameservers=nameservers, domain=domain, 
+                      domain_search=domain_search )
     except ValueError:
         logging.warning(" - Cannot add client for host %s and IP %s on tap %s",
                         hostname, ip, tap)
@@ -247,9 +216,7 @@ class Client(object):
     def __init__(self, tap=None, mtu=None, indev=None,
                  mac=None, ip=None, hostname=None,
                  subnet=None, gateway=None, domain=None,
-                 domain_search=None, subnet6=None, 
-                 gateway6=None, eui64=None, nameservers=None, 
-                 nameservers6=None ):
+                 domain_search=None, nameservers=None ):
         self.mtu = mtu
         self.mac = mac
         self.ip = ip
@@ -259,14 +226,9 @@ class Client(object):
         self.subnet = subnet
         self.gateway = gateway
         self.net = Subnet(net=subnet, gw=gateway, dev=tap)
-        self.subnet6 = subnet6
-        self.gateway6 = gateway6
-        self.net6 = Subnet(net=subnet6, gw=gateway6, dev=tap)
-        self.eui64 = eui64
         self.domain = domain
         self.domain_search = domain_search
         self.nameservers = nameservers
-        self.nameservers6 = nameservers6
         self.open_socket()
 
     def is_valid(self):
@@ -311,8 +273,6 @@ class Client(object):
                (self.hostname, self.tap, self.mac)
         if self.ip:
             ret += ", ip %s" % self.ip
-        if self.eui64:
-            ret += ", eui64 %s" % self.eui64
         return ret
 
 def format_domain_search(domain):
@@ -359,44 +319,13 @@ class Subnet(object):
         """
         return self.net.prefixlen()
 
-    @staticmethod
-    def _make_eui64(net, mac):
-        """ Compute an EUI-64 address from an EUI-48 (MAC) address
-
-        """
-        if mac is None:
-            return None
-        comp = mac.split(":")
-        prefix = IPy.IP(net).net().strFullsize().split(":")[:4]
-        eui64 = comp[:3] + ["ff", "fe"] + comp[3:]
-        eui64[0] = "%02x" % (int(eui64[0], 16) ^ 0x02)
-        for l in range(0, len(eui64), 2):
-            prefix += ["".join(eui64[l:l+2])]
-        return IPy.IP(":".join(prefix))
-
-    def make_eui64(self, mac):
-        """ Compute an EUI-64 address from an EUI-48 (MAC) address in this
-        subnet.
-
-        """
-        return self._make_eui64(self.net, mac)
-
-    def make_ll64(self, mac):
-        """ Compute an IPv6 Link-local address from an EUI-48 (MAC) address
-
-        """
-        return self._make_eui64("fe80::", mac)
-
 
 class VMNetProxy(object):  # pylint: disable=R0902
     def __init__(self, data_path, dhcp_queue_num=None,  # pylint: disable=R0913
-                 rs_queue_num=None, ns_queue_num=None, dhcpv6_queue_num=None,
                  dhcp_lease_lifetime=DEFAULT_LEASE_LIFETIME,
                  dhcp_lease_renewal=DEFAULT_LEASE_RENEWAL,
                  dhcp_domain=None, dhcp_domain_search=None,
-                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP, dhcp_nameservers=None,
-                 ra_period=DEFAULT_RA_PERIOD, ipv6_nameservers=None,
-                 dhcpv6_domains=None):
+                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP, dhcp_nameservers=None):
 
         try:
             getattr(nfqueue.payload, 'get_physindev')
@@ -409,7 +338,6 @@ class VMNetProxy(object):  # pylint: disable=R0902
         self.dhcp_domain = dhcp_domain
         self.dhcp_domain_search = dhcp_domain_search
         self.dhcp_server_ip = dhcp_server_ip
-        self.ra_period = ra_period
 
         if dhcp_nameservers is None:
             self.dhcp_nameserver = []
@@ -421,22 +349,9 @@ class VMNetProxy(object):  # pylint: disable=R0902
         else:
             self.dhcp_domain_search = dhcp_domain_search
 
-        if ipv6_nameservers is None:
-            self.ipv6_nameservers = []
-        else:
-            self.ipv6_nameservers = ipv6_nameservers
-
-        if dhcpv6_domains is None:
-            self.dhcpv6_domains = []
-        else:
-            self.dhcpv6_domains = dhcpv6_domains
-
-        self.ipv6_enabled = False
-
         self.clients = {}
         #self.subnets = {}
         #self.ifaces = {}
-        #self.v6nets = {}
         self.nfq = {}
 
         # Inotify setup
@@ -450,18 +365,6 @@ class VMNetProxy(object):  # pylint: disable=R0902
         # NFQUEUE setup
         if dhcp_queue_num is not None:
             self._setup_nfqueue(dhcp_queue_num, AF_INET, self.dhcp_response, 0)
-
-        if rs_queue_num is not None:
-            self._setup_nfqueue(rs_queue_num, AF_INET6, self.rs_response, 10)
-            self.ipv6_enabled = True
-
-        if ns_queue_num is not None:
-            self._setup_nfqueue(ns_queue_num, AF_INET6, self.ns_response, 10)
-            self.ipv6_enabled = True
-
-        if dhcpv6_queue_num is not None:
-            self._setup_nfqueue(dhcpv6_queue_num, AF_INET6, self.dhcpv6_response, 10)
-            self.ipv6_enabled = True
 
     def get_binding(self, ifindex, mac):
         try:
@@ -744,257 +647,6 @@ class VMNetProxy(object):  # pylint: disable=R0902
             logging.warn(" - DHCP: Unkown error during response on %s: %s",
                          binding, str(e))
 
-    def dhcpv6_response(self, arg1, arg2=None):  # pylint: disable=W0613
-
-        logging.info(" * DHCPv6: Processing pending request")
-        # Workaround for supporting both squeezy's nfqueue-bindings-python
-        # and wheezy's python-nfqueue because for some reason the function's
-        # signature has changed and has broken compatibility
-        # See bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718894
-        if arg2:
-            payload = arg2
-        else:
-            payload = arg1
-        pkt = IPv6(payload.get_data())
-        indev = get_indev(payload)
-
-        #TODO: figure out how to find the src mac
-        mac = None
-        binding = self.get_binding(indev, mac)
-        if binding is None:
-            # We don't know anything about this interface, so accept the packet
-            # and return and let the kernel handle it
-            payload.set_verdict(nfqueue.NF_ACCEPT)
-            return
-
-        # Signal the kernel that it shouldn't further process the packet
-        payload.set_verdict(nfqueue.NF_DROP)
-
-        subnet = binding.net6
-
-        if subnet.net is None:
-            logging.debug(" - DHCPv6: No IPv6 network assigned to %s", binding)
-            return
-
-        indevmac = self.get_iface_hw_addr(binding.indev)
-        ifll = subnet.make_ll64(indevmac)
-        if ifll is None:
-            return
-
-        ofll = subnet.make_ll64(binding.mac)
-        if ofll is None:
-            return
-
-        if self.dhcpv6_domains:
-            domains = self.dhcpv6_domains
-        else:
-            domains = [binding.hostname.split('.', 1)[-1]]
-
-        # We do this in order not to caclulate optlen ourselves
-        dnsdomains = str(DHCP6OptDNSDomains(dnsdomains=domains))
-        dnsservers = str(DHCP6OptDNSServers(dnsservers=self.ipv6_nameservers))
-
-        resp = Ether(src=indevmac, dst=binding.mac)/\
-               IPv6(tc=192, src=str(ifll), dst=str(ofll))/\
-               UDP(sport=pkt.dport, dport=pkt.sport)/\
-               DHCP6_Reply(trid=pkt[DHCP6_InfoRequest].trid)/\
-               DHCP6OptClientId(duid=pkt[DHCP6OptClientId].duid)/\
-               DHCP6OptServerId(duid=DUID_LLT(lladdr=indevmac, timeval=time.time()))/\
-               DHCP6OptDNSDomains(dnsdomains)/\
-               DHCP6OptDNSServers(dnsservers)
-
-        logging.info(" - RESPONSE: DHCPv6 reply for %s", binding)
-
-        try:
-            binding.sendp(resp)
-        except socket.error, e:
-            logging.warn(" - DHCPv6: Response on %s failed: %s",
-                         binding, str(e))
-        except Exception, e:
-            logging.warn(" - DHCPv6: Unkown error during response on %s: %s",
-                         binding, str(e))
-
-
-    def rs_response(self, arg1, arg2=None):  # pylint: disable=W0613
-        """ Generate a reply to an ICMPv6 router solicitation
-
-        """
-        logging.info(" * RS: Processing pending request")
-        # Workaround for supporting both squeezy's nfqueue-bindings-python
-        # and wheezy's python-nfqueue because for some reason the function's
-        # signature has changed and has broken compatibility
-        # See bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718894
-        if arg2:
-            payload = arg2
-        else:
-            payload = arg1
-        pkt = IPv6(payload.get_data())
-        #logging.debug(pkt.show())
-        try:
-            mac = pkt.lladdr
-        except:
-            logging.debug(" - RS: Cannot obtain lladdr")
-            return
-
-        indev = get_indev(payload)
-
-        binding = self.get_binding(indev, mac)
-        if binding is None:
-            # We don't know anything about this interface, so accept the packet
-            # and return and let the kernel handle it
-            payload.set_verdict(nfqueue.NF_ACCEPT)
-            return
-
-        # Signal the kernel that it shouldn't further process the packet
-        payload.set_verdict(nfqueue.NF_DROP)
-
-        if mac != binding.mac:
-            logging.warn(" - RS: Received spoofed request from %s (and not %s)",
-                         mac, binding)
-            return
-
-        subnet = binding.net6
-
-        if subnet.net is None:
-            logging.debug(" - RS: No IPv6 network assigned to %s", binding)
-            return
-
-        indevmac = self.get_iface_hw_addr(binding.indev)
-        ifll = subnet.make_ll64(indevmac)
-        if ifll is None:
-            return
-
-        resp = Ether(src=indevmac)/\
-               IPv6(src=str(ifll))/ICMPv6ND_RA(O=1, routerlifetime=14400)/\
-               ICMPv6NDOptPrefixInfo(prefix=str(subnet.prefix),
-                                     prefixlen=subnet.prefixlen)
-
-        if self.ipv6_nameservers:
-            resp /= ICMPv6NDOptRDNSS(dns=self.ipv6_nameservers,
-                                     lifetime=self.ra_period * 3)
-
-        logging.info(" - RESPONSE: RA for %s", binding)
-
-        try:
-            binding.sendp(resp)
-        except socket.error, e:
-            logging.warn(" - RS: RA failed on %s: %s",
-                         binding, str(e))
-        except Exception, e:
-            logging.warn(" - RS: Unkown error during RA on %s: %s",
-                         binding, str(e))
-
-    def ns_response(self, arg1, arg2=None):  # pylint: disable=W0613
-        """ Generate a reply to an ICMPv6 neighbor solicitation
-
-        """
-
-        logging.info(" * NS: Processing pending request")
-        # Workaround for supporting both squeezy's nfqueue-bindings-python
-        # and wheezy's python-nfqueue because for some reason the function's
-        # signature has changed and has broken compatibility
-        # See bug http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718894
-        if arg2:
-            payload = arg2
-        else:
-            payload = arg1
-
-        ns = IPv6(payload.get_data())
-        #logging.debug(ns.show())
-        try:
-            mac = ns.lladdr
-        except:
-            logging.debug(" - NS: Cannot obtain lladdr")
-            return
-
-
-        indev = get_indev(payload)
-
-        binding = self.get_binding(indev, mac)
-        if binding is None:
-            # We don't know anything about this interface, so accept the packet
-            # and return and let the kernel handle it
-            payload.set_verdict(nfqueue.NF_ACCEPT)
-            return
-
-        payload.set_verdict(nfqueue.NF_DROP)
-
-        if mac != binding.mac:
-            logging.warn(" - NS: Received spoofed request from %s (and not %s)",
-                         mac, binding)
-            return
-
-        subnet = binding.net6
-        if subnet.net is None:
-            logging.debug(" - NS: No IPv6 network assigned to %s", binding)
-            return
-
-        indevmac = self.get_iface_hw_addr(binding.indev)
-
-        ifll = subnet.make_ll64(indevmac)
-        if ifll is None:
-            return
-
-        if not (subnet.net.overlaps(ns.tgt) or str(ns.tgt) == str(ifll)):
-            logging.debug(" - NS: Received NS for a non-routable IP (%s)", ns.tgt)
-            return 1
-
-        resp = Ether(src=indevmac, dst=binding.mac)/\
-               IPv6(src=str(ifll), dst=ns.src)/\
-               ICMPv6ND_NA(R=1, O=0, S=1, tgt=ns.tgt)/\
-               ICMPv6NDOptDstLLAddr(lladdr=indevmac)
-
-        logging.info(" - RESPONSE: NA for %s ", binding)
-
-        try:
-            binding.sendp(resp)
-        except socket.error, e:
-            logging.warn(" - NS: NA on %s failed: %s",
-                         binding, str(e))
-        except Exception, e:
-            logging.warn(" - NS: Unkown error during NA to %s: %s",
-                         binding, str(e))
-
-    def send_periodic_ra(self):
-        # Use a separate thread as this may take a _long_ time with
-        # many interfaces and we want to be responsive in the mean time
-        threading.Thread(target=self._send_periodic_ra).start()
-
-    def _send_periodic_ra(self):
-        logging.info(" * Periodic RA: Starting...")
-        start = time.time()
-        i = 0
-        for binding in self.clients.values():
-            tap = binding.tap
-            indev = binding.indev
-            # mac = binding.mac
-            subnet = binding.net6
-            if subnet.net is None:
-                logging.debug(" - Periodic RA: Skipping %s", binding)
-                continue
-            indevmac = self.get_iface_hw_addr(indev)
-            ifll = subnet.make_ll64(indevmac)
-            if ifll is None:
-                continue
-            resp = Ether(src=indevmac)/\
-                   IPv6(src=str(ifll))/ICMPv6ND_RA(O=1, routerlifetime=14400)/\
-                   ICMPv6NDOptPrefixInfo(prefix=str(subnet.prefix),
-                                         prefixlen=subnet.prefixlen)
-            if self.ipv6_nameservers:
-                resp /= ICMPv6NDOptRDNSS(dns=self.ipv6_nameservers,
-                                         lifetime=self.ra_period * 3)
-            logging.info(" - RESPONSE: NA for %s ", binding)
-            try:
-                binding.sendp(resp)
-            except socket.error, e:
-                logging.warn(" - Periodic RA: Failed on %s: %s",
-                             binding, str(e))
-            except Exception, e:
-                logging.warn(" - Periodic RA: Unkown error on %s: %s",
-                             binding, str(e))
-            i += 1
-        logging.info(" - Periodic RA: Sent %d RAs in %.2f seconds", i, time.time() - start)
-
     def serve(self):
         """ Safely perform the main loop, freeing all resources upon exit
 
@@ -1015,16 +667,11 @@ class VMNetProxy(object):  # pylint: disable=R0902
         iwfd = self.notifier._fd  # pylint: disable=W0212
 
         start = time.time()
-        if self.ipv6_enabled:
-            timeout = self.ra_period
-            self.send_periodic_ra()
-        else:
-            timeout = None
 
         while True:
             try:
                 rlist, _, xlist = select.select(self.nfq.keys() + [iwfd],
-                                                [], [], timeout)
+                                                [], [], None)
             except select.error, e:
                 if e[0] == errno.EINTR:
                     logging.debug("select() got interrupted")
@@ -1056,21 +703,12 @@ class VMNetProxy(object):  # pylint: disable=R0902
                         logging.warn("Unknown error processing fd %d: %s",
                                      fd, str(e))
 
-            if self.ipv6_enabled:
-                # Calculate the new timeout
-                timeout = self.ra_period - (time.time() - start)
-
-                if timeout <= 0:
-                    start = time.time()
-                    self.send_periodic_ra()
-                    timeout = self.ra_period - (time.time() - start)
-
     def print_clients(self):
         logging.info("%10s   %20s %20s %10s %20s %40s",
-                     'Key', 'Client', 'MAC', 'TAP', 'IP', 'IPv6')
+                     'Key', 'Client', 'MAC', 'TAP', 'IP')
         for k, cl in self.clients.items():
-            logging.info("%10s | %20s %20s %10s %20s %40s",
-                         k, cl.hostname, cl.mac, cl.tap, cl.ip, cl.eui64)
+            logging.info("%10s | %20s %20s %10s %20s",
+                         k, cl.hostname, cl.mac, cl.tap, cl.ip)
 
 
 
@@ -1224,16 +862,6 @@ if __name__ == "__main__":
             "dhcp_nameservers": config["dhcp"]["nameservers"],
             "dhcp_domain": config["dhcp"]["domain"],
             "dhcp_domain_search": config["dhcp"]["domain_search"],
-        })
-
-    if config["ipv6"].as_bool("enable_ipv6"):
-        proxy_opts.update({
-            "dhcpv6_queue_num": config["ipv6"].as_int("dhcp_queue"),
-            "rs_queue_num": config["ipv6"].as_int("rs_queue"),
-            "ns_queue_num": config["ipv6"].as_int("ns_queue"),
-            "ra_period": config["ipv6"].as_int("ra_period"),
-            "ipv6_nameservers": config["ipv6"]["nameservers"],
-            "dhcpv6_domains": config["ipv6"]["domains"],
         })
 
     # pylint: disable=W0142
