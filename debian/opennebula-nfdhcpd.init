@@ -62,8 +62,8 @@ LOGFILE=$LOGDIR/$NAME.log  # Server logfile
                         # is set start-stop-daemon will chuid the server
 
 # Include defaults if available
-if [ -f /etc/default/$NAME ] ; then
-	. /etc/default/$NAME
+if [ -f /etc/default/opennebula-$NAME ] ; then
+	. /etc/default/opennebula-$NAME
 fi
 
 # Use this if you want the user to explicitly set 'RUN' in
