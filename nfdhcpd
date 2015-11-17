@@ -50,6 +50,14 @@ from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, UDP
 from scapy.layers.dhcp import BOOTP, DHCP
 
+from scapy.fields import ShortField, ByteField, FieldLenField, IntField, StrLenField
+import scapy.layers.dhcp as scapy_dhcp
+
+scapy_dhcp.DHCPOptions[26] = ShortField("interface_mtu", 1500)
+scapy_dhcp.DHCPRevOptions["interface_mtu"] = (26, scapy_dhcp.DHCPOptions[26])
+scapy_dhcp.DHCPOptions[119] = "domain_search"
+scapy_dhcp.DHCPRevOptions["domain_search"] = (119, None)
+
 DEFAULT_CONFIG = "/etc/nfdhcpd/nfdhcpd.conf"
 DEFAULT_USER = "nobody"
 DEFAULT_LEASE_LIFETIME = 604800 # 1 week
@@ -132,7 +140,7 @@ def parse_binding_file(path):
 
     """
     logging.info("Parsing binding file %s", path)
-    
+
     try:
         iffile = open(path, 'r')
     except EnvironmentError, e:
@@ -159,7 +167,7 @@ def parse_binding_file(path):
 
     for line in iffile:
         if line.startswith("MTU="):
-            mtu = get_value(line)
+            mtu = int(get_value(line))
         elif line.startswith("IP="):
             ip = get_value(line)
         elif line.startswith("MAC="):
@@ -182,16 +190,16 @@ def parse_binding_file(path):
             logging.warn("Unknown line in binding file %s: %s", path, line)
 
     try:
-        return Client(filename=filename, 
-                      mtu=mtu, 
-                      mac=mac, 
-                      ip=ip, 
-                      hostname=hostname, 
-                      indev=indev, 
-                      subnet=subnet, 
+        return Client(filename=filename,
+                      mtu=mtu,
+                      mac=mac,
+                      ip=ip,
+                      hostname=hostname,
+                      indev=indev,
+                      subnet=subnet,
                       gateway=gateway,
-                      nameservers=nameservers, 
-                      domain=domain, 
+                      nameservers=nameservers,
+                      domain=domain,
                       domain_search=domain_search )
     except ValueError:
         logging.warning(" - Cannot add client for host %s and IP %s on interface %s",
@@ -222,17 +230,17 @@ class ClientFileHandler(pyinotify.ProcessEvent):
 
 
 class Client(object):
-    def __init__(self, 
-                 filename=None, 
-                 mtu=None, 
+    def __init__(self,
+                 filename=None,
+                 mtu=None,
                  indev=None,
-                 mac=None, 
-                 ip=None, 
+                 mac=None,
+                 ip=None,
                  hostname=None,
-                 subnet=None, 
-                 gateway=None, 
+                 subnet=None,
+                 gateway=None,
                  domain=None,
-                 domain_search=None, 
+                 domain_search=None,
                  nameservers=None ):
         self.filename = filename
         self.mtu = mtu
@@ -249,7 +257,7 @@ class Client(object):
         self.open_socket()
 
     def is_valid(self):
-        # XXX
+        #XXX
         return self.indev is not None and self.mac is not None
 
 
@@ -259,7 +267,7 @@ class Client(object):
         try:
             s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, ETH_P_ALL)
             s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 0)
-            s.bind((self.indev, ETH_P_ALL)) #XXX self.indev should never be None 
+            s.bind((self.indev, ETH_P_ALL)) #XXX self.indev should never be None
             self.socket = s
         except socket.error, e:
             logging.warning(" - Cannot open socket %s", e)
@@ -336,14 +344,14 @@ class Subnet(object):
 
 
 class VMNetProxy(object):
-    def __init__(self, 
-                 data_path, 
+    def __init__(self,
+                 data_path,
                  dhcp_queue_num=None,
                  dhcp_lease_lifetime=DEFAULT_LEASE_LIFETIME,
                  dhcp_lease_renewal=DEFAULT_LEASE_RENEWAL,
-                 dhcp_domain=None, 
+                 dhcp_domain=None,
                  dhcp_domain_search=None,
-                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP, 
+                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP,
                  dhcp_nameservers=None):
         try:
             getattr(nfqueue.payload, 'get_physindev')
