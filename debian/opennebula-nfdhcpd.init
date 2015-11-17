@@ -29,11 +29,11 @@
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 DAEMON=/usr/sbin/nfdhcpd
-NAME=nfdhcpd
+NAME=opennebula-nfdhcpd
 DESC="NFQUEUE-based DHCP/RA server" 
-LOGDIR=/var/log/one
 
 PIDFILE=/var/run/$NAME/$NAME.pid
+LOGFILE=/var/log/one/nfdhcpd.log
 
 test -x $DAEMON || exit 0
 
@@ -56,14 +56,10 @@ STARTTIME=1             # Time to wait for the server to start, in seconds
                         # to setup a pid file the log message might 
                         # be a false positive (says it did not start
                         # when it actually did)
-                        
-LOGFILE=$LOGDIR/$NAME.log  # Server logfile
-#DAEMON_USER=nfdhcp     # Users to run the daemons as. If this value
-                        # is set start-stop-daemon will chuid the server
 
 # Include defaults if available
-if [ -f /etc/default/opennebula-$NAME ] ; then
-	. /etc/default/opennebula-$NAME
+if [ -f /etc/default/$NAME ] ; then
+	. /etc/default/$NAME
 fi
 
 # Use this if you want the user to explicitly set 'RUN' in
