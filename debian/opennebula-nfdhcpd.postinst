@@ -20,7 +20,8 @@ set -e
 
 case "$1" in
     configure)
-    chown nobody /var/log/nfdhcpd
+    touch /var/log/one/nfdhcpd.log
+    chown nobody:nogroup /var/log/one/nfdhcpd.log
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

@@ -1,11 +1,11 @@
-Source: one-nfdhcpd
+Source: opennebula-nfdhcpd
 Section: net
 Priority: extra
 Maintainer: Guillaume Oberlé <goberle@unistra.fr>
 Build-Depends: debhelper (>= 7)
 Standards-Version: 3.9.1
 
-Package: one-nfdhcpd
+Package: opennebula-nfdhcpd
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, python-scapy(>= 2.0.1-1),
          python-daemon(>=1.5.2-1), python-pyinotify(>=0.7.1-1),

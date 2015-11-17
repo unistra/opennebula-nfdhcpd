@@ -31,7 +31,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/sbin/nfdhcpd
 NAME=nfdhcpd
 DESC="NFQUEUE-based DHCP/RA server" 
-LOGDIR=/var/log/nfdhcpd
+LOGDIR=/var/log/one
 
 PIDFILE=/var/run/$NAME/$NAME.pid
 
