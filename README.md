@@ -1,33 +1,27 @@
-nfdhcpd
-=======
+opennebula-nfdhcpd
+==================
 
 Overview
 --------
 
-This is nfdhpcd, a userspace server written in python and based on
+opennebula-nfdhcpd is a fork of [snf-nfdhcpd](https://github.com/grnet/snf-nfdhcpd) that
+enable the integration of nfdhcpd for OpenNebula.
+
+This is opennebula-nfdhpcd, a userspace server written in python and based on
 [NFQUEUE](https://www.wzdftpd.net/redmine/projects/nfqueue-bindings/wiki/). The
-administrator can enable processing of DHCP, NS, RS, DHCPv6 requests on
-individual TAP interfaces by injecting nfdhcpd in the processing pipeline for
-IP packets dynamically (by mangling the corresponding packet types and redirect
-them to the appropriate nfqueue).
+administrator can enable processing of DHCP requests on individual TAP 
+interfaces by injecting opennebula-nfdhcpd in the processing pipeline for IP 
+packets dynamically (by mangling the corresponding packet types and redirect them to the
+appropriate nfqueue).
 
 The daemon runs on the host and is controlled by manipulating files
 under its state directory. Creation of a new file under this directory
 ("binding file") instructs the daemon to reply on the requests arriving
 on the specified TAP interface.
 
-nfdhpcd is meant to work with [Ganeti](http://code.google.com/p/ganeti) and
-[snf-network](https://github.com/grnet/snf-network). Instances inside the
-cluster will obtain their configuration dynamically in a completely transparent
-way without being aware of nfdhpcd's existence.
-
-
-Project Page
-------------
-
-Please see the [official Synnefo site](http://www.synnefo.org) and the
-[latest snf-network docs](http://www.synnefo.org/docs/nfdhcpd/latest/index.html)
-for more information.
+openenbula-nfdhpcd is meant to work with [OpenNebula](http://opennebula.org).
+Instances will obtain their network configuration dynamically in a completely transparent 
+way without being aware of opennebula-nfdhpcd's existence.
 
 
 Copyright and license
