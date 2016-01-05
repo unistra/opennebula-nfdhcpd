@@ -4,8 +4,9 @@ opennebula-nfdhcpd
 Overview
 --------
 
-opennebula-nfdhcpd is a fork of [snf-nfdhcpd](https://github.com/grnet/snf-nfdhcpd) that
-enable the integration of nfdhcpd for OpenNebula.
+opennebula-nfdhcpd is a fork of 
+[snf-nfdhcpd](https://github.com/grnet/snf-nfdhcpd) that enable the integration
+of nfdhcpd for [OpenNebula](https://github.com/grnet/snf-nfdhcpd).
 
 This is opennebula-nfdhpcd, a userspace server written in python and based on
 [NFQUEUE](https://www.wzdftpd.net/redmine/projects/nfqueue-bindings/wiki/). The
