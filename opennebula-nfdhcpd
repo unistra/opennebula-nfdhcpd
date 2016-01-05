@@ -56,7 +56,7 @@ scapy_dhcp.DHCPRevOptions["interface_mtu"] = (26, scapy_dhcp.DHCPOptions[26])
 scapy_dhcp.DHCPOptions[119] = "domain_search"
 scapy_dhcp.DHCPRevOptions["domain_search"] = (119, None)
 
-DEFAULT_CONFIG = "/etc/opennebula-nfdhcpd/opennebula-nfdhcpd.conf"
+DEFAULT_CONFIG = "/etc/opennebula-nfdhcpd.conf"
 DEFAULT_USER = "nobody"
 DEFAULT_LEASE_LIFETIME = 604800 # 1 week
 DEFAULT_LEASE_RENEWAL = 600  # 10 min
