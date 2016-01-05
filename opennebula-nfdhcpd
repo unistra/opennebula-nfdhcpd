@@ -25,10 +25,8 @@ import errno
 import re
 import sys
 import glob
-import time
 import logging
 import logging.handlers
-import threading
 import traceback
 
 import daemon
@@ -50,7 +48,7 @@ from scapy.layers.l2 import Ether
 from scapy.layers.inet import IP, UDP
 from scapy.layers.dhcp import BOOTP, DHCP
 
-from scapy.fields import ShortField, ByteField, FieldLenField, IntField, StrLenField
+from scapy.fields import ShortField
 import scapy.layers.dhcp as scapy_dhcp
 
 scapy_dhcp.DHCPOptions[26] = ShortField("interface_mtu", 1500)
@@ -58,13 +56,13 @@ scapy_dhcp.DHCPRevOptions["interface_mtu"] = (26, scapy_dhcp.DHCPOptions[26])
 scapy_dhcp.DHCPOptions[119] = "domain_search"
 scapy_dhcp.DHCPRevOptions["domain_search"] = (119, None)
 
-DEFAULT_CONFIG = "/etc/one/nfdhcpd.conf"
+DEFAULT_CONFIG = "/etc/opennebula-nfdhcpd/opennebula-nfdhcpd.conf"
 DEFAULT_USER = "nobody"
 DEFAULT_LEASE_LIFETIME = 604800 # 1 week
 DEFAULT_LEASE_RENEWAL = 600  # 10 min
 DHCP_DUMMY_SERVER_IP = "169.254.255.254"
 
-LOG_FILENAME = "nfdhcpd.log"
+LOG_FILENAME = "opennebula-nfdhcpd.log"
 
 SYSFS_NET = "/sys/class/net"
 
@@ -200,7 +198,7 @@ def parse_binding_file(path):
                       gateway=gateway,
                       nameservers=nameservers,
                       domain=domain,
-                      domain_search=domain_search )
+                      domain_search=domain_search)
     except ValueError:
         logging.warning(" - Cannot add client for host %s and IP %s on interface %s",
                         hostname, ip, indev)
@@ -241,7 +239,7 @@ class Client(object):
                  gateway=None,
                  domain=None,
                  domain_search=None,
-                 nameservers=None ):
+                 nameservers=None):
         self.filename = filename
         self.mtu = mtu
         self.mac = mac
@@ -349,9 +347,9 @@ class VMNetProxy(object):
                  dhcp_queue_num=None,
                  dhcp_lease_lifetime=DEFAULT_LEASE_LIFETIME,
                  dhcp_lease_renewal=DEFAULT_LEASE_RENEWAL,
+                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP,
                  dhcp_domain=None,
                  dhcp_domain_search=None,
-                 dhcp_server_ip=DHCP_DUMMY_SERVER_IP,
                  dhcp_nameservers=None):
         try:
             getattr(nfqueue.payload, 'get_physindev')
@@ -598,7 +596,7 @@ class VMNetProxy(object):
             return
 
         resp = Ether(dst=mac, src=self.get_iface_hw_addr(binding.indev))/\
-               IP(src=DHCP_DUMMY_SERVER_IP, dst=binding.ip)/\
+               IP(src=self.dhcp_server_ip, dst=binding.ip)/\
                UDP(sport=pkt.dport, dport=pkt.sport)/resp
         subnet = binding.net
 
@@ -661,7 +659,7 @@ class VMNetProxy(object):
         # Finally, always add the server identifier and end options
         dhcp_options += [
             ("message-type", resp_type),
-            ("server_id", DHCP_DUMMY_SERVER_IP),
+            ("server_id", self.dhcp_server_ip),
             "end"
         ]
         resp /= DHCP(options=dhcp_options)
@@ -693,8 +691,6 @@ class VMNetProxy(object):
         # Yes, we are accessing _fd directly, but it's the only way to have a
         # single select() loop ;-)
         iwfd = self.notifier._fd  # pylint: disable=W0212
-
-        start = time.time()
 
         while True:
             try:
@@ -887,9 +883,9 @@ if __name__ == "__main__":
             "dhcp_lease_lifetime": config["dhcp"].as_int("lease_lifetime"),
             "dhcp_lease_renewal": config["dhcp"].as_int("lease_renewal"),
             "dhcp_server_ip": config["dhcp"]["server_ip"],
-            "dhcp_nameservers": config["dhcp"]["nameservers"],
             "dhcp_domain": config["dhcp"]["domain"],
             "dhcp_domain_search": config["dhcp"]["domain_search"],
+            "dhcp_nameservers": config["dhcp"]["nameservers"],
         })
 
     # pylint: disable=W0142

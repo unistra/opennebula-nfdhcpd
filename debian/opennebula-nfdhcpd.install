@@ -1,3 +1,3 @@
-nfdhcpd usr/sbin/
-nfdhcpd.conf etc/one/
-nfdhcpd.logrotate etc/logrotate.d/
+opennebula-nfdhcpd usr/sbin/
+opennebula-nfdhcpd.conf etc/opennebula-nfdhcpd/
+opennebula-nfdhcpd.logrotate etc/logrotate.d/opennebula-nfdhcpd

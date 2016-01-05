@@ -1,4 +1,4 @@
-/var/log/nfdhcpd/nfdhcpd.log {
+/var/log/opennebula-nfdhcpd/opennebula-nfdhcpd.log {
   daily
   rotate 5
   missingok

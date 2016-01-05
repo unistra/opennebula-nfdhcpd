@@ -28,12 +28,12 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-DAEMON=/usr/sbin/nfdhcpd
+DAEMON=/usr/sbin/opennebula-nfdhcpd
 NAME=opennebula-nfdhcpd
 DESC="NFQUEUE-based DHCP/RA server" 
 
 PIDFILE=/var/run/$NAME/$NAME.pid
-LOGFILE=/var/log/one/nfdhcpd.log
+LOGFILE=/var/log/opennebula-nfdhcpd/opennebula-nfdhcpd.log
 
 test -x $DAEMON || exit 0
 
