@@ -9,6 +9,7 @@ class NFDHCPDDriver < VNMDriver
     GLOBAL_CHAIN           = "opennebula"
     NFQUEUE_QUEUE_NUM      = 42
     BINDING_FILES_DATAPATH = "/var/lib/opennebula-nfdhcpd/"
+    DEFAULT_MTU            = 1500
 
     def initialize(vm_64, deploy_id = nil, hypervisor = nil, xpath_filter = nil)
         vm_xml = Base64::decode64(vm_64)
@@ -46,7 +47,7 @@ class NFDHCPDDriver < VNMDriver
             commands = VNMNetwork::Commands.new
 
             # Create NFDHCPD binding file
-            binding_file = NFDHCPDBindingFile.new("one-#{vm['ID']}", nic[:tap], nic[:mac], nic[:ip], nic[:network_address], nic[:network_mask], nic[:gateway], nic[:dns])
+            binding_file = NFDHCPDBindingFile.new("one-#{vm['ID']}", nic[:tap], nic[:mac], nic[:ip], nic[:network_address], nic[:network_mask], nic[:gateway], nic[:dns], DEFAULT_MTU)
             binding_file.save("#{BINDING_FILES_DATAPATH}/one-#{vm['ID']}-#{nic[:nic_id]}")
 
             chain = "one-#{vm['ID']}-#{nic[:nic_id]}-nfdhcpd"
@@ -161,7 +162,7 @@ class NFDHCPDBindingFile
     TEMPLATE = %{<% @items.each do |k,v| %><%= k %>=<%= v %>
 <% end %>}
 
-    def initialize(hostname, indev, mac, ip, network_address, network_mask, gateway, nameservers)
+    def initialize(hostname, indev, mac, ip, network_address, network_mask, gateway, nameservers, mtu)
         @items = {
           :HOSTNAME => hostname,
           :INDEV => indev,
@@ -170,7 +171,7 @@ class NFDHCPDBindingFile
           :SUBNET => "#{network_address}/#{network_mask}",
           :GATEWAY => gateway,
           :NAMESERVERS => nameservers,
-          :MTU => "1450"
+          :MTU => mtu
         }
     end
 
