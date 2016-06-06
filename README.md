@@ -39,12 +39,16 @@ INHERIT_VNET_ATTR       = "DNS"
 
 2. Update VXLAN and 802.1Q scripts :
   * In post action : 
-  `nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)`
-  `nfdhcpd_driver.activate`
+  ```
+  nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)
+  nfdhcpd_driver.activate
+  ```
 
   * In clean action :
-  `nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)`
-  `nfdhcpd_driver.deactivate`
+  ```
+  nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)
+  nfdhcpd_driver.deactivate
+  ```
 
 3. Copy the nfdhdcpd driver in the remotes scripts directory :
 
