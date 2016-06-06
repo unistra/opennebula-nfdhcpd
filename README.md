@@ -35,16 +35,16 @@ INHERIT_VNET_ATTR       = "GATEWAY"
 INHERIT_VNET_ATTR       = "DNS"`
 
 2. Update VXLAN and 802.1Q scripts :
-* In post action : 
-`nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)
-nfdhcpd_driver.activate`
+  * In post action : 
+  `nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)`
+  `nfdhcpd_driver.activate`
 
-* In clean action :
-`nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)
-nfdhcpd_driver.deactivate`
+  * In clean action :
+  `nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)`
+  `nfdhcpd_driver.deactivate`
 
 3. Copy the nfdhdcpd driver in the remotes scripts directory :
-`cp remotes/vnm/nfdhcpd.rb /var/lib/one/remotes/vnm/nfdhcpd.rb
+  `cp remotes/vnm/nfdhcpd.rb /var/lib/one/remotes/vnm/nfdhcpd.rb
 
 4. Add `require 'nfdhcpd'` in /var/lib/one/remotes/vnm/vnmmad.rb 
 
