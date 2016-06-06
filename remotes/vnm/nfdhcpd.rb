@@ -11,7 +11,7 @@ class NFDHCPDDriver < VNMDriver
     BINDING_FILES_DATAPATH = "/var/lib/opennebula-nfdhcpd/"
     DEFAULT_MTU            = 1500
 
-    def initialize(vm_64, deploy_id = nil, hypervisor = nil, xpath_filter = nil)
+    def initialize(vm_64, xpath_filter = nil, deploy_id = nil)
         vm_xml = Base64::decode64(vm_64)
 
         if xpath_filter
@@ -22,7 +22,7 @@ class NFDHCPDDriver < VNMDriver
         @rules = []
         @locking = true
 
-        super(vm_xml, XPATH_FILTER, deploy_id, hypervisor)
+        super(vm_xml, XPATH_FILTER, deploy_id)
 
         OpenNebula.log_info(vm_xml)
     end
@@ -32,6 +32,7 @@ class NFDHCPDDriver < VNMDriver
 
         # Get iptables chains
         @chains = get_chains
+        @rules = get_rules
 
         # Bootstrap if GLOBAL_CHAIN doesn't exist
         bootstrap unless @chains.include?(GLOBAL_CHAIN)
@@ -51,6 +52,19 @@ class NFDHCPDDriver < VNMDriver
             binding_file.save("#{BINDING_FILES_DATAPATH}/one-#{vm['ID']}-#{nic[:nic_id]}")
 
             chain = "one-#{vm['ID']}-#{nic[:nic_id]}-nfdhcpd"
+
+	    # Remove link from global chain to NIC chain
+            @rules.each do |rule|
+                if rule.include?(chain)
+                    commands.add :iptables, "-t mangle -D #{rule}"
+                end
+            end
+
+            # Remove NIC chain 
+            if @chains.include?(chain)
+                commands.add :iptables, "-t mangle -F #{chain}"
+                commands.add :iptables, "-t mangle -X #{chain}"
+            end
 
             # Create NIC chain
             commands.add :iptables, "-t mangle -N #{chain}"
@@ -188,4 +202,3 @@ class NFDHCPDBindingFile
 end
 
 end
-
