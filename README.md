@@ -28,11 +28,12 @@ Installation
 ------------
 
 1. Add in /etc/one/oned.conf :
-`INHERIT_VNET_ATTR       = "NFDHCPD"
-INHERIT_VNET_ATTR       = "NETWORK_ADDRESS"
-INHERIT_VNET_ATTR       = "NETWORK_MASK"
-INHERIT_VNET_ATTR       = "GATEWAY"
-INHERIT_VNET_ATTR       = "DNS"`
+
+`INHERIT_VNET_ATTR       = "NFDHCPD"`
+`INHERIT_VNET_ATTR       = "NETWORK_ADDRESS"`
+`INHERIT_VNET_ATTR       = "NETWORK_MASK"`
+`INHERIT_VNET_ATTR       = "GATEWAY"`
+`INHERIT_VNET_ATTR       = "DNS"`
 
 2. Update VXLAN and 802.1Q scripts :
   * In post action : 
@@ -44,7 +45,8 @@ INHERIT_VNET_ATTR       = "DNS"`
   `nfdhcpd_driver.deactivate`
 
 3. Copy the nfdhdcpd driver in the remotes scripts directory :
-  `cp remotes/vnm/nfdhcpd.rb /var/lib/one/remotes/vnm/nfdhcpd.rb
+
+`cp remotes/vnm/nfdhcpd.rb /var/lib/one/remotes/vnm/nfdhcpd.rb
 
 4. Add `require 'nfdhcpd'` in /var/lib/one/remotes/vnm/vnmmad.rb 
 
