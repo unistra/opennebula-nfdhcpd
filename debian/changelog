@@ -1,3 +1,9 @@
+opennebula-nfdhcpd (0.12.4) xenial-dev; urgency=medium
+
+  * Release 0.12.4 
+
+ -- root <root@one-dev.unistra.fr>  Wed, 06 Jul 2016 16:39:19 +0200
+
 opennebula-nfdhcpd (0.12.3-1) trusty-dev; urgency=low
 
   * Initial Release.
