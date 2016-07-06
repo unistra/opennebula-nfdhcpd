@@ -28,26 +28,36 @@ Building
 --------
 
 1. Clone the repository :
-`git clone https://github.com/unistra/opennebula-nfdhcpd`
+
+   `git clone https://github.com/unistra/opennebula-nfdhcpd`
+
 2. Create the source package :
-`dpkg-source -b opennebula-nfdhcpd`
+
+   `dpkg-source -b opennebula-nfdhcpd`
+
 3. Create the pbuilder environement :
-`pbuilder --create --distribution xenial`
+
+   `pbuilder --create --distribution xenial`
+
 4. Build the package :
-`pbuilder --build --distribution xenial opennebula-nfdhcpd_x.x.x.dsc`
+
+   `pbuilder --build --distribution xenial opennebula-nfdhcpd_x.x.x.dsc`
+
 5. Results are in `/var/cache/pbuilder/result/`
 
 Installation
 ------------
 
 1. Add in /etc/one/oned.conf :
-```
-INHERIT_VNET_ATTR       = "NFDHCPD"
-INHERIT_VNET_ATTR       = "NETWORK_ADDRESS"
-INHERIT_VNET_ATTR       = "NETWORK_MASK"
-INHERIT_VNET_ATTR       = "GATEWAY"
-INHERIT_VNET_ATTR       = "DNS"
-```
+
+   ```
+   INHERIT_VNET_ATTR       = "NFDHCPD"
+   INHERIT_VNET_ATTR       = "NETWORK_ADDRESS"
+   INHERIT_VNET_ATTR       = "NETWORK_MASK"
+   INHERIT_VNET_ATTR       = "GATEWAY"
+   INHERIT_VNET_ATTR       = "DNS"
+   ```
+
 2. Update VXLAN and 802.1Q scripts :
   * In post action : 
   ```
@@ -59,9 +69,13 @@ INHERIT_VNET_ATTR       = "DNS"
   nfdhcpd_driver = VNMMAD::NFDHCPDDriver.new(template64, xpath_filter, deploy_id)
   nfdhcpd_driver.deactivate
   ```
+
 3. Copy the nfdhdcpd driver in the remotes scripts directory :
-`cp remotes/vnm/nfdhcpd.rb /var/lib/one/remotes/vnm/nfdhcpd.rb`
+
+   `cp remotes/vnm/nfdhcpd.rb /var/lib/one/remotes/vnm/nfdhcpd.rb`
+
 4. Add `require 'nfdhcpd'` in /var/lib/one/remotes/vnm/vnmmad.rb 
+
 5. Install opennebula-nfdhcpd package on your hypervisors
 
 Copyright and license
