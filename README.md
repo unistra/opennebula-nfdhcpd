@@ -24,6 +24,27 @@ openenbula-nfdhpcd is meant to work with [OpenNebula](http://opennebula.org).
 Instances will obtain their network configuration dynamically in a completely transparent 
 way without being aware of opennebula-nfdhpcd's existence.
 
+Building
+--------
+
+1. Clone the repository :
+
+`git clone https://github.com/unistra/opennebula-nfdhcpd`
+
+2. Create the source package :
+
+`dpkg-source -b opennebula-nfdhcpd`
+
+3. Create the pbuilder environement :
+
+`pbuilder --create --distribution xenial`
+
+4. Build the package :
+
+`pbuilder --build --distribution xenial opennebula-nfdhcpd_x.x.x.dsc`
+
+5. Results are in `/var/cache/pbuilder/result/`
+
 Installation
 ------------
 
