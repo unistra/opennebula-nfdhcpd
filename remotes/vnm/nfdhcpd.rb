@@ -179,7 +179,7 @@ module VNMMAD
 
   class NFDHCPDBindingFile
     TEMPLATE = %{<% @items.each do |k,v| %><%= k %>=<%= v %>
-      <% end %>}
+<% end %>}
 
     def initialize(hostname, indev, mac, ip, network_address, network_mask, gateway, nameservers, mtu)
       @items = {
