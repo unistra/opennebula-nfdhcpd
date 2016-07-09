@@ -181,29 +181,29 @@ module VNMMAD
     TEMPLATE = %{<% @items.each do |k,v| %><%= k %>=<%= v %>
       <% end %>}
 
-      def initialize(hostname, indev, mac, ip, network_address, network_mask, gateway, nameservers, mtu)
-        @items = {
-          :HOSTNAME => hostname,
-          :INDEV => indev,
-          :MAC => mac,
-          :IP => ip,
-          :SUBNET => "#{network_address}/#{network_mask}",
-          :GATEWAY => gateway,
-          :NAMESERVERS => nameservers,
-          :MTU => mtu
-        }
-      end
+    def initialize(hostname, indev, mac, ip, network_address, network_mask, gateway, nameservers, mtu)
+      @items = {
+        :HOSTNAME => hostname,
+        :INDEV => indev,
+        :MAC => mac,
+        :IP => ip,
+        :SUBNET => "#{network_address}/#{network_mask}",
+        :GATEWAY => gateway,
+        :NAMESERVERS => nameservers,
+        :MTU => mtu
+      }
+    end
 
-      def render()
-        ERB.new(TEMPLATE).result(binding)
-      end
+    def render()
+      ERB.new(TEMPLATE).result(binding)
+    end
 
-      def save(file)
-        File.open(file, "w+") do |f|
-          f.write(render)
-        end
+    def save(file)
+      File.open(file, "w+") do |f|
+        f.write(render)
       end
-
     end
 
   end
+
+end
