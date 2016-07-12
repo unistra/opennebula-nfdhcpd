@@ -1,6 +1,0 @@
-# Defaults for opennebula-nfdhcpd initscript
-# sourced by /etc/init.d/opennebula-nfdhcpd
-# installed at /etc/default/opennebula-nfdhcpd by the maintainer scripts
-
-RUN="yes"
-DAEMON_OPTS=""

@@ -1,8 +1,0 @@
-/var/log/opennebula-nfdhcpd/opennebula-nfdhcpd.log {
-  daily
-  rotate 5
-  missingok
-  notifempty
-  create 644 nobody nogroup
-}
-

@@ -72,7 +72,7 @@ LOG_FORMAT = "%(asctime)-15s %(levelname)-8s %(message)s"
 CONFIG_SPEC = """
 [general]
 pidfile = string()
-datapath = string()
+datadir = string()
 logdir = string()
 user = string()
 
@@ -343,7 +343,7 @@ class Subnet(object):
 
 class VMNetProxy(object):
     def __init__(self,
-                 data_path,
+                 data_dir,
                  dhcp_queue_num=None,
                  dhcp_lease_lifetime=DEFAULT_LEASE_LIFETIME,
                  dhcp_lease_renewal=DEFAULT_LEASE_RENEWAL,
@@ -357,7 +357,7 @@ class VMNetProxy(object):
         except AttributeError:
             self.mac_indexed_clients = True
 
-        self.data_path = data_path
+        self.data_dir = data_dir
         self.lease_lifetime = dhcp_lease_lifetime
         self.lease_renewal = dhcp_lease_renewal
         self.dhcp_domain = dhcp_domain
@@ -383,7 +383,7 @@ class VMNetProxy(object):
         mask |= pyinotify.EventsCodes.ALL_FLAGS["IN_CLOSE_WRITE"]
         inotify_handler = ClientFileHandler(self)
         self.notifier = pyinotify.Notifier(self.wm, inotify_handler)
-        self.wm.add_watch(self.data_path, mask, rec=True)
+        self.wm.add_watch(self.data_dir, mask, rec=True)
 
         # NFQUEUE setup
         if dhcp_queue_num is not None:
@@ -434,7 +434,7 @@ class VMNetProxy(object):
     def build_config(self):
         self.clients.clear()
 
-        for path in glob.glob(os.path.join(self.data_path, "*")):
+        for path in glob.glob(os.path.join(self.data_dir, "*")):
             self.add_interface_binding(path)
 
         self.print_clients()
@@ -889,7 +889,7 @@ if __name__ == "__main__":
         })
 
     # pylint: disable=W0142
-    proxy = VMNetProxy(data_path=config["general"]["datapath"], **proxy_opts)
+    proxy = VMNetProxy(data_dir=config["general"]["datadir"], **proxy_opts)
 
     logging.info("Ready to serve requests")
 

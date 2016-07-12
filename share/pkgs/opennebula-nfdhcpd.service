@@ -1,0 +1,11 @@
+[Unit]
+Description=OpenNebula NFDHCPD
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/opennebula-nfdhcpd
+Restart=on-failure
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
