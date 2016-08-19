@@ -1,0 +1,105 @@
+Name:           opennebula-nfdhcpd
+Version:        0.12.4
+Release:        2%{?dist}
+Summary:        A userspace dhcp server written in python and based on NFQUEUE.
+
+License:        GPLv2
+URL:            https://github.com/unistra/opennebula-nfdhcpd
+Source0:        %{name}-%{version}.tar.gz
+
+Requires:       tcpdump
+Requires:       python-daemon
+Requires:       python-IPy
+Requires:       python-configobj
+Requires:       python-setproctitle
+Requires:       python-inotify
+Requires:       scapy
+Requires:       libcap-ng-python
+Requires:       nfqueue-bindings-python
+Requires:       opennebula
+Requires:       opennebula-node-kvm
+
+%{?systemd_requires}
+BuildRequires:  systemd
+
+%description
+opennebula-nfdhcpd is a fork of snf-nfdhcpd that enable the integration of
+nfdhcpd for OpenNebula.
+
+This is opennebula-nfdhpcd, a userspace server written in python and based on
+NFQUEUE. The administrator can enable processing of DHCP requests on individual
+TAP interfaces by injecting opennebula-nfdhcpd in the processing pipeline for
+IP packets dynamically (by mangling the corresponding packet types and redirect
+them to the appropriate nfqueue).
+
+The daemon runs on the host and is controlled by manipulating files under its
+state directory. Creation of a new file under this directory ("binding file")
+instructs the daemon to reply on the requests arriving on the specified TAP
+interface.
+
+openenbula-nfdhpcd is meant to work with OpenNebula. Instances will obtain
+their network configuration dynamically in a completely transparent way without
+being aware of opennebula-nfdhpcd's existence.
+
+%prep
+%setup -q
+
+%build
+
+%install
+rm -rf $RPM_BUILD_ROOT
+
+# /usr/sbin/opennebula-nfdhcpd
+install -p -D -m 644 %{name} %{buildroot}%{_sbindir}/%{name}
+# /etc/opennebula-nfdchpd.conf
+install -p -D -m 644 share/etc/%{name}.conf %{buildroot}%{_sysconfdir}/%{name}.conf
+# /etc/logrotate.d/opennebula-nfdchpd
+install -p -D -m 644 share/etc/logrotate.d/%{name} %{buildroot}%{_sysconfdir}/logrotate.d/%{name}
+# /usr/lib/systemd/system/opennebula-nfdhcpd.service
+install -p -D -m 644 share/pkgs/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
+
+# /var/lib/opennebula-nfdhcpd
+install -o oneadmin -g oneadmin -p -d %{buildroot}%{_sharedstatedir}/%{name}
+# /var/log/opennebula-nfdhcpd/opennebula-nfdhcpd.log
+install -p -d %{buildroot}%{_localstatedir}/log/%{name}
+touch %{buildroot}%{_localstatedir}/log/%{name}/%{name}.log
+chown nobody:nobody %{buildroot}%{_localstatedir}/log/%{name}/%{name}.log
+# PIDs (/var/run/opennebula-nfdhcpd)
+install -o nobody -g nobody -p -d %{buildroot}%{_localstatedir}/run/%{name}
+
+%files
+%doc
+%defattr(0644, root, root)
+
+# /usr/sbin/opennebula-nfdchpd
+%attr(0755, root, root) %{_sbindir}/*
+# /etc/opennebula-nfdhcpd.conf
+%config(noreplace) %{_sysconfdir}/%{name}.conf
+# /etc/logrotate.d/opennebula-nfdhcpd
+%config %{_sysconfdir}/logrotate.d/%{name}
+# /usr/lib/systemd/system/opennebula-nfdhcpd.service
+%{_unitdir}/%{name}.service
+
+# /var/lib/opennebula-nfdhcpd
+%dir %attr(0755, oneadmin, oneadmin) %{_sharedstatedir}/%{name}
+# /var/log/opennebula-nfdhcpd
+%dir %attr(0755, root, root) %{_localstatedir}/log/%{name}
+# /var/log/opennebula-nfdhcpd/opennebula-nfdhcpd.log
+%attr(0644, nobody, nobody) %{_localstatedir}/log/%{name}/*
+# /var/run/opennebula-nfdhcpd
+%dir %attr(0755, nobody, nobody) %{_localstatedir}/run/%{name}
+
+%post
+%systemd_post %{name}.service
+
+%preun
+%systemd_preun %{name}.service
+
+%postun
+%systemd_postun_with_restart %{name}.service
+
+%changelog
+* Fri Aug 19 2016 goberle <goberle@unistra.fr> - 0.12.4-2
+- Fix permissions of binding files directory
+* Mon Jul 07 2016 goberle <goberle@unistra.fr> - 0.12.4-1
+- Initial release
