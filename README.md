@@ -31,19 +31,20 @@ Building
 
    `git clone https://github.com/unistra/opennebula-nfdhcpd`
 
-2. Create the source package :
+2. Create the tarball archive from a git tag :
 
-   `dpkg-source -b opennebula-nfdhcpd`
+   `git archive --format=tar --prefix=opennebula-nfdhcpd-x.x.x/ x.x.x | gzip >opennebula-nfdhcpd-x.x.x.tar.gz`
 
-3. Create the pbuilder environement :
+3. Move the SPEC file and the tarball archive to the build environement :
 
-   `pbuilder --create --distribution xenial`
+   `mv opennebula-nfdhcpd.spec.in ~/rpmbuild/SPECS/opennebula-nfdhcpd.spec`
+   `mv opennebula-nfdhcpd-x.x.x.tar.gz ~/rpmbuild/SOURCES/`
 
 4. Build the package :
 
-   `pbuilder --build --distribution xenial opennebula-nfdhcpd_x.x.x.dsc`
+   `rpmbuild -ba ~/rpmbuild/SPECS/opennebula-nfdhcpd.spec`
 
-5. Results are in `/var/cache/pbuilder/result/`
+5. Results are in `~/rpmbuild/RPMS/x86_64/`
 
 Installation
 ------------
