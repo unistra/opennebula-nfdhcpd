@@ -1,5 +1,5 @@
 Name:           opennebula-nfdhcpd
-Version:        0.12.4
+Version:        0.12.5
 Release:        2%{?dist}
 Summary:        A userspace dhcp server written in python and based on NFQUEUE.
 
@@ -64,8 +64,6 @@ install -o oneadmin -g oneadmin -p -d %{buildroot}%{_sharedstatedir}/%{name}
 install -p -d %{buildroot}%{_localstatedir}/log/%{name}
 touch %{buildroot}%{_localstatedir}/log/%{name}/%{name}.log
 chown nobody:nobody %{buildroot}%{_localstatedir}/log/%{name}/%{name}.log
-# PIDs (/var/run/opennebula-nfdhcpd)
-install -o nobody -g nobody -p -d %{buildroot}%{_localstatedir}/run/%{name}
 
 %files
 %doc
@@ -86,8 +84,6 @@ install -o nobody -g nobody -p -d %{buildroot}%{_localstatedir}/run/%{name}
 %dir %attr(0755, root, root) %{_localstatedir}/log/%{name}
 # /var/log/opennebula-nfdhcpd/opennebula-nfdhcpd.log
 %attr(0644, nobody, nobody) %{_localstatedir}/log/%{name}/*
-# /var/run/opennebula-nfdhcpd
-%dir %attr(0755, nobody, nobody) %{_localstatedir}/run/%{name}
 
 %post
 %systemd_post %{name}.service
