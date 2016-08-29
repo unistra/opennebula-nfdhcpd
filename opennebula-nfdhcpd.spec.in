@@ -1,6 +1,6 @@
 Name:           opennebula-nfdhcpd
 Version:        0.12.5
-Release:        2%{?dist}
+Release:        1%{?dist}
 Summary:        A userspace dhcp server written in python and based on NFQUEUE.
 
 License:        GPLv2
@@ -95,6 +95,8 @@ chown nobody:nobody %{buildroot}%{_localstatedir}/log/%{name}/%{name}.log
 %systemd_postun_with_restart %{name}.service
 
 %changelog
+* Mon Aug 29 2016 goberle <goberle@unistra.fr> - 0.12.5-1
+- Add runtime directory creation in systemd
 * Fri Aug 19 2016 goberle <goberle@unistra.fr> - 0.12.4-2
 - Fix permissions of binding files directory
 * Mon Jul 07 2016 goberle <goberle@unistra.fr> - 0.12.4-1
