@@ -38,6 +38,7 @@ Building
 3. Move the SPEC file and the tarball archive to the build environement :
 
    `mv opennebula-nfdhcpd.spec.in ~/rpmbuild/SPECS/opennebula-nfdhcpd.spec`
+
    `mv opennebula-nfdhcpd-x.x.x.tar.gz ~/rpmbuild/SOURCES/`
 
 4. Build the package :
