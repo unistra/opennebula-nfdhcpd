@@ -3,6 +3,8 @@ Description=OpenNebula NFDHCPD
 
 [Service]
 Type=simple
+ExecStartPre=-/usr/bin/mkdir -p /run/run/opennebula-nfdhcpd
+ExecStartPre=/usr/bin/chown -R nobody:nobody /run/run/opennebula-nfdhcpd
 ExecStart=/usr/sbin/opennebula-nfdhcpd
 Restart=on-failure
 KillMode=process
